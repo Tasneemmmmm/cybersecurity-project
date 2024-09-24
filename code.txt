@@ -1,0 +1,795 @@
+the code name is on the zipped file is gui.py 
+
+
+
+from pathlib import Path
+from math import *
+from tkinter import *
+from tkinter import Tk, Canvas, Entry, Text, Button, PhotoImage
+from tkinter import filedialog
+from tkinter.ttk import Combobox
+import os
+
+
+OUTPUT_PATH = Path(__file__).parent
+ASSETS_PATH = OUTPUT_PATH / Path(r"D:\computing\build\assets\frame0")
+
+
+
+#AsneeT_T....................................................................................................
+
+
+class SubstitutionCipher:
+    def __init__(self):
+        self.alphabet = 'abcdefghijklmnopqrstuvwxyz'
+
+    def encrypt(self, plain_text, key):
+        key = self._sanitize_key(key)  # Remove non-alphabet characters from the key
+        if not self._is_valid_key(key):
+            return "Invalid key. Key must contain all unique letters from 'a' to 'z'."
+        encrypted_text = ""
+        for char in plain_text:
+            if char.isalpha():
+                if char.islower():
+                    encrypted_char = key[ord(char) - ord('a')]
+                else:
+                    encrypted_char = key[ord(char) - ord('A')].upper()
+                encrypted_text += encrypted_char
+
+            else:
+                encrypted_text += char
+        return encrypted_text
+
+    def decrypt(self, cipher_text, key):
+        key = self._sanitize_key(key) 
+        if not self._is_valid_key(key):
+            return "Invalid key. Key must contain all unique letters from 'a' to 'z'."
+        decrypted_text = ""
+        for char in cipher_text:
+            if char.isalpha():
+                if char.islower():
+                    decrypted_char = self.alphabet[key.index(char)]
+                else:
+                    decrypted_char = self.alphabet[key.index(char.lower())].upper()
+                decrypted_text += decrypted_char
+            else:
+                decrypted_text += char
+        return decrypted_text
+
+    def _is_valid_key(self, key):
+        return len(key) == 26 and set(key) == set(self.alphabet)
+
+    def _sanitize_key(self, key):
+        
+        return ''.join(filter(str.isalpha, key)).lower()
+
+
+#AsneeT_T.....................................................................................................
+
+class PlayfairCipher:
+    def __init__(self, key):
+        self.alphabet = 'abcdefghiklmnopqrstuvwxyz'  
+        self.key = key.lower().replace(' ', '').replace('j', 'i')
+        self.key_square = self.generate_key_square()
+
+    def generate_key_square(self):
+        key_square = ''
+        for letter in self.key + self.alphabet:
+            if letter not in key_square:
+                key_square += letter
+                if len(key_square) == 25:
+                    break
+        return key_square
+
+    def prepare_text(self, text):
+        text = text.lower().replace(' ', '').replace('j', 'i')
+        if len(text) % 2 == 1:
+            text += 'x'
+        return [text[i:i+2] for i in range(0, len(text), 2)]
+
+    def encrypt(self, plaintext):
+        digraphs = self.prepare_text(plaintext)
+        return self.process_digraphs(digraphs, 'encrypt')
+
+    def decrypt(self, cipher_text, key):
+        key = key.lower().replace(' ', '').replace('j', 'i')
+        self.key_square = self.generate_key_square(key)  # Update key square with the new key
+
+    def process_digraphs(self, digraphs, mode):
+        result = ''
+        for digraph in digraphs:
+            if mode == 'encrypt':
+                result += self.encrypt_digraph(digraph)
+            elif mode == 'decrypt':
+                result += self.decrypt_digraph(digraph)
+        return result
+
+    def encrypt_digraph(self, digraph):
+        a, b = digraph
+        row_a, col_a = divmod(self.key_square.index(a), 5)
+        row_b, col_b = divmod(self.key_square.index(b), 5)
+        
+        if row_a == row_b:
+            col_a = (col_a + 1) % 5
+            col_b = (col_b + 1) % 5
+        elif col_a == col_b:
+            row_a = (row_a + 1) % 5
+            row_b = (row_b + 1) % 5
+        else:
+            col_a, col_b = col_b, col_a
+
+        return self.key_square[row_a*5 + col_a] + self.key_square[row_b*5 + col_b]
+
+    def decrypt_digraph(self, digraph):
+        a, b = digraph
+        row_a, col_a = divmod(self.key_square.index(a), 5)
+        row_b, col_b = divmod(self.key_square.index(b), 5)
+        
+        if row_a == row_b:
+            col_a = (col_a - 1) % 5
+            col_b = (col_b - 1) % 5
+        elif col_a == col_b:
+            row_a = (row_a - 1) % 5
+            row_b = (row_b - 1) % 5
+        else:
+            col_a, col_b = col_b, col_a
+
+        return self.key_square[row_a*5 + col_a] + self.key_square[row_b*5 + col_b]
+
+
+
+
+#AsneeT_T.....................................................................................................
+
+
+class RailFenceCipher:
+    def encrypt(self, plain_text, rails):
+        rail = [''] * rails
+        direction = -1
+        row = 0
+        if rails < 2:
+            return "The depth is too short. Please choose a number of rails greater than or equal to 2."
+        for char in plain_text:
+            rail[row] += char
+            if row == 0 or row == rails - 1:
+                direction *= -1
+            row += direction
+
+        cipher_text = ''.join(rail)
+        return cipher_text
+
+    def decrypt(self, cipher_text, rails):
+        if rails < 2:
+            return "The depth is too short. Please choose a number of rails greater than or equal to 2."
+        cycle = 2 * rails - 2
+        message_length = len(cipher_text)
+        decrypted = [''] * message_length
+          
+        for row in range(rails):
+            step = 2 * row
+            j = 0
+            for i in range(row, message_length, cycle):
+                decrypted[i] = cipher_text[j]
+                j += 1
+                if step != cycle and step != 0 and i + cycle - step < message_length:
+                    decrypted[i + cycle - step] = cipher_text[j]
+                    j += 1
+                step += 2
+        
+        return ''.join(decrypted)
+
+
+
+#AsneeT_T.....................................................................................................
+
+
+class Rot13Cipher:
+    def encrypt(self, plain_text):
+        encrypted_text = ""
+        for char in plain_text:
+            if char.isalpha():
+                shift = 13
+                if char.islower():
+                    start = ord('a')
+                else:
+                    start = ord('A')
+                encrypted_char = chr((ord(char) - start + shift) % 26 + start)
+                encrypted_text += encrypted_char
+            else:
+                encrypted_text += char
+        return encrypted_text
+
+    def decrypt(self, cipher_text):
+        decrypted_text = ""
+        for char in cipher_text:
+            if char.isalpha():
+                shift = 13
+                if char.islower():
+                    start = ord('a')
+                else:
+                    start = ord('A')
+                decrypted_char = chr((ord(char) - start - shift) % 26 + start)
+                decrypted_text += decrypted_char
+            else:
+                decrypted_text += char
+        return decrypted_text
+
+
+
+
+#AsneeT_T.....................................................................................................
+
+
+class AffineCipher:
+    def __init__(self):
+        pass
+
+    def encrypt(self, plaintext, a, b):
+        ciphertext = ""
+        for char in plaintext:
+            if char.isalpha():
+                if char.islower():
+                    char = chr((a * (ord(char) - ord('a')) + b) % 26 + ord('a'))
+                else:
+                    char = chr((a * (ord(char) - ord('A')) + b) % 26 + ord('A'))
+            ciphertext += char
+        return ciphertext
+
+    def decrypt(self, ciphertext, a, b):
+        plaintext = ""
+        mod_inverse_a = self.mod_inverse(a, 26) 
+        for char in ciphertext:
+            if char.isalpha():
+                if char.islower():
+                    char = chr((mod_inverse_a * (ord(char) - ord('a') - b)) % 26 + ord('a'))
+                else:
+                    char = chr((mod_inverse_a * (ord(char) - ord('A') - b)) % 26 + ord('A'))
+            plaintext += char
+        return plaintext
+
+    def mod_inverse(self, a, m):
+        m0, x0, x1 = m, 0, 1
+        if m == 1:
+            return 0
+        while a > 1:
+            q = a // m
+            m, a = a % m, m
+            x0, x1 = x1 - q * x0, x0
+        if x1 < 0:
+            x1 += m0
+        return x1
+
+
+#AsneeT_T.....................................................................................................
+
+class CaesarCipher:
+    def __init__(self, shift):
+        self.shift = shift
+
+    def encrypt(self, plaintext):
+        ciphertext = ""
+        for char in plaintext:
+            if char.isalpha(): 
+                shifted_char = chr(((ord(char) - ord('A') + self.shift) % 26) + ord('A'))
+                ciphertext += shifted_char
+            else:
+                ciphertext += char
+        return ciphertext
+
+    def decrypt(self, ciphertext):
+        plaintext = ""
+        for char in ciphertext:
+            if char.isalpha(): 
+                shifted_char = chr(((ord(char.upper()) - ord('A') - self.shift) % 26) + ord('A'))
+                plaintext += shifted_char
+            else:
+                plaintext += char 
+        return plaintext
+
+
+
+#AsneeT_T.....................................................................................................
+
+def relative_to_assets(path: str) -> Path:
+    return ASSETS_PATH / Path(path)
+
+
+window = Tk()
+
+window.geometry("713x469")
+window.configure(bg = "#FFFFFF")
+
+
+canvas = Canvas(
+    window,
+    bg = "#FFFFFF",
+    height = 469,
+    width = 713,
+    bd = 0,
+    highlightthickness = 0,
+    relief = "ridge"
+)
+
+canvas.place(x = 0, y = 0)
+image_image_1 = PhotoImage(
+    file=relative_to_assets("image_1.png"))
+image_1 = canvas.create_image(
+    356.0,
+    234.0,
+    image=image_image_1
+)
+
+image_image_2 = PhotoImage(
+    file=relative_to_assets("image_2.png"))
+image_2 = canvas.create_image(
+    356.0,
+    234.0,
+    image=image_image_2
+)
+
+canvas.create_text(
+    396.0,
+    156.0,
+    anchor="nw",
+    text="choose a way:",
+    fill="#55D0D7",
+    font=("Inter Bold", 12 * -1)
+)
+
+entry_image_1 = PhotoImage(
+    file=relative_to_assets("entry_1.png"))
+entry_bg_1 = canvas.create_image(
+    140.0,
+    84.0,
+    image=entry_image_1
+)
+plain_t = Entry(
+    bd=0,
+    bg="#FFFFFF",
+    fg="#000716",
+    highlightthickness=0
+)
+plain_t.place(
+    x=50.0,
+    y=68.0,
+    width=180.0,
+    height=30.0
+)
+
+entry_image_2 = PhotoImage(
+    file=relative_to_assets("entry_2.png"))
+entry_bg_2 = canvas.create_image(
+    257.5,
+    187.5,
+    image=entry_image_2
+)
+key_e = Entry(
+    bd=0,
+    bg="#FFFFFF",
+    fg="#000716",
+    highlightthickness=0
+)
+key_e.place(
+    x=191.0,
+    y=174.0,
+    width=133.0,
+    height=25.0
+)
+
+entry_image_3 = PhotoImage(
+    file=relative_to_assets("entry_3.png"))
+entry_bg_3 = canvas.create_image(
+    597.5,
+    279.5,
+    image=entry_image_3
+)
+output_d = Entry(
+    bd=0,
+    bg="#FFFFFF",
+    fg="#000716",
+    highlightthickness=0
+)
+output_d.place(
+    x=497.0,
+    y=250.0,
+    width=201.0,
+    height=57.0
+)
+
+entry_image_4 = PhotoImage(
+    file=relative_to_assets("entry_4.png"))
+entry_bg_4 = canvas.create_image(
+    118.5,
+    279.5,
+    image=entry_image_4
+)
+output_e =Entry(
+    bd=0,
+    bg="#FFFFFF",
+    fg="#000716",
+    highlightthickness=0,
+)
+output_e.place(
+    x=18.0,
+    y=250.0,
+    width=201.0,
+    height=57.0
+)
+
+
+def display_file_content():
+   
+    file_path = filedialog.askopenfilename(filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
+
+    if file_path:
+       
+        with open(file_path, "r") as file:
+            file_content = file.read()
+
+            plain_t.delete(0, "end")  
+            plain_t.insert(0, file_content)  
+
+
+
+
+
+
+button_image_1 = PhotoImage(
+    file=relative_to_assets("button_1.png"))
+choos_file_encryption = Button(
+    image=button_image_1,
+    borderwidth=0,
+    highlightthickness=0,
+    command=display_file_content,
+    relief="flat"
+)
+choos_file_encryption.place(
+    x=130.0,
+    y=110.0,
+    width=98.69388580322266,
+    height=32.0
+)
+
+entry_image_5 = PhotoImage(
+    file=relative_to_assets("entry_5.png"))
+entry_bg_5 = canvas.create_image(
+    609.0,
+    190.5,
+    image=entry_image_5
+)
+key_d = Entry(
+    bd=0,
+    bg="#FFFFFF",
+    fg="#000716",
+    highlightthickness=0
+)
+key_d.place(
+    x=544.0,
+    y=177.0,
+    width=130.0,
+    height=25.0
+)
+
+entry_image_6 = PhotoImage(
+    file=relative_to_assets("entry_6.png"))
+entry_bg_6 = canvas.create_image(
+    506.0,
+    86.0,
+    image=entry_image_6
+)
+dycripted_t = Entry(
+    bd=0,
+    bg="#FFFFFF",
+    fg="#000716",
+    highlightthickness=0
+)
+dycripted_t.place(
+    x=416.0,
+    y=70.0,
+    width=180.0,
+    height=30.0
+)
+
+
+
+def display_file_content():
+    file_path = filedialog.askopenfilename(filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
+
+    if file_path:
+        with open(file_path, "r") as file:
+            file_content = file.read()
+
+            
+            dycripted_t.delete(0,"end")  
+            dycripted_t.insert(0, file_content)  
+
+
+
+
+
+button_image_2 = PhotoImage(
+    file=relative_to_assets("button_2.png"))
+choos_file_dcryption= Button(
+    image=button_image_2,
+    borderwidth=0,
+    highlightthickness=0,
+    command=display_file_content,
+    relief="flat"
+)
+
+
+
+
+choos_file_dcryption.place(
+    x=492.0,
+    y=115.0,
+    width=104.30107879638672,
+    height=32.0
+)
+
+canvas.create_text(
+    75.0,
+    45.0,
+    anchor="nw",
+    text="Enter plain text:",
+    fill="#55D0D7",
+    font=("Inter Bold", 12 * -1)
+)
+
+canvas.create_text(
+    434.0,
+    45.0,
+    anchor="nw",
+    text="Enter dycrypted text:",
+    fill="#55D0D7",
+    font=("Inter Bold", 12 * -1)
+)
+
+
+
+
+def download_output():
+    text_content = output_e.get()
+    file_path = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text files", "*.txt")])
+
+    if file_path:
+        with open(file_path, "w") as file:
+            file.write(text_content)
+            print(f"File saved successfully: {file_path}")
+
+button_image_3 = PhotoImage(
+    file=relative_to_assets("button_3.png"))
+download_encryption = Button(
+    image=button_image_3,
+    borderwidth=0,
+    highlightthickness=0,
+    command=download_output,
+    relief="flat"
+)
+download_encryption.place(
+    x=36.0,
+    y=380.0,
+    width=139.17160034179688,
+    height=42.0
+)
+
+button_image_4 = PhotoImage(
+    file=relative_to_assets("button_4.png"))
+back = Button(
+    image=button_image_4,
+    borderwidth=0,
+    highlightthickness=0,
+    command=lambda: print("button_4 clicked"),
+    relief="flat"
+)
+back.place(
+    x=299.0,
+    y=373.0,
+    width=103.0,
+    height=56.0
+)
+
+canvas.create_text(
+    66.0,
+    119.0,
+    anchor="nw",
+    text="OR\n",
+    fill="#55D0D7",
+    font=("Inter Bold", 16 * -1)
+)
+
+canvas.create_text(
+    434.0,
+    119.0,
+    anchor="nw",
+    text="OR\n",
+    fill="#55D0D7",
+    font=("Inter Bold", 16 * -1)
+)
+
+canvas.create_text(
+    206.0,
+    153.0,
+    anchor="nw",
+    text="Enter a key:",
+    fill="#55D0D7",
+    font=("Inter Bold", 12 * -1)
+)
+
+canvas.create_text(
+    561.0,
+    153.0,
+    anchor="nw",
+    text="Enter a key:",
+    fill="#55D0D7",
+    font=("Inter Bold", 12 * -1)
+)
+
+canvas.create_text(
+    507.0,
+    227.0,
+    anchor="nw",
+    text="output:",
+    fill="#55D0D7",
+    font=("Inter Bold", 12 * -1)
+)
+
+canvas.create_text(
+    25.0,
+    224.0,
+    anchor="nw",
+    text="output:",
+    fill="#55D0D7",
+    font=("Inter Bold", 12 * -1)
+)
+
+
+
+choices_e = ["substitution", "rail fence", "affine", "rot13", "playfair", "ceaser cipher"]
+combo_var_5 = Combobox(window, values=choices_e, state="readonly")
+combo_var_5.current(0) 
+combo_var_5.place(x=31.0, y=183.0, width=137.0, height=19.0)
+
+choices_d = ["substitution", "rail fence", "affine", "rot13", "playfair", "ceaser cipher"]
+combo_var_6 = Combobox(window, values=choices_d, state="readonly")
+combo_var_6.current(0) 
+combo_var_6.place(x=391.0, y=183.0, width=137.0, height=19.0)
+
+
+canvas.create_text(
+    36.0,
+    156.0,
+    anchor="nw",
+    text="choose a way:",
+    fill="#55D0D7",
+    font=("Inter Bold", 12 * -1)
+)
+
+def download_output():
+    
+    decrypted_text = output_d.get()
+    file_path = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text files", "*.txt")])
+
+    if file_path:
+        with open(file_path, "w") as file:
+            file.write(decrypted_text)
+            print(f"File saved successfully: {file_path}")
+
+button_image_6 = PhotoImage(
+    file=relative_to_assets("button_6.png"))
+download_dycrption = Button(
+    image=button_image_6,
+    borderwidth=0,
+    highlightthickness=0,
+    command=download_output ,
+    relief="flat"
+)
+download_dycrption.place(
+    x=518.0,
+    y=381.0,
+    width=139.17160034179688,
+    height=42.0
+)
+
+
+
+
+def convert_decryption():
+    encrypted_text = dycripted_t.get()
+    key = key_d.get() 
+    method = combo_var_6.get()
+    if method == "substitution":
+        cipher = SubstitutionCipher()
+        decrypted_text = cipher.decrypt(encrypted_text, key)
+    elif method == "rail fence":
+        rails = int(key)
+        cipher = RailFenceCipher()
+        decrypted_text = cipher.decrypt(encrypted_text, rails)
+    elif method == "affine":
+        a, b = map(int, key.split())
+        cipher = AffineCipher()
+        decrypted_text = cipher.decrypt(encrypted_text, a, b)
+    elif method == "rot13":
+        cipher = Rot13Cipher()
+        decrypted_text = cipher.decrypt(encrypted_text)
+    elif method == "playfair":
+        cipher = PlayfairCipher(key)
+        decrypted_text = cipher.decrypt(encrypted_text)
+        decrypted_text = cipher.decrypt(encrypted_text, key)
+    elif method == "ceaser cipher":
+        shift = int(key)
+        cipher = CaesarCipher(shift)
+        decrypted_text = cipher.decrypt(encrypted_text)
+    else:
+        decrypted_text = "Invalid decryption method"
+    output_d.delete(0, END)  
+    output_d.insert(0, decrypted_text) 
+
+
+
+button_image_7 = PhotoImage(
+    file=relative_to_assets("button_7.png"))
+convert_dcryption = Button(
+    image=button_image_7,
+    borderwidth=0,
+    highlightthickness=0,
+    command=convert_decryption,
+    relief="flat"
+)
+convert_dcryption.place(
+    x=381.0,
+    y=260.0,
+    width=106.0,
+    height=38.78287887573242
+)
+
+def convert_encryption_clicked():
+    plain_text = plain_t.get()
+    key = key_e.get()
+    method = combo_var_5.get()
+
+    if method == "substitution":
+        cipher = SubstitutionCipher()
+        encrypted_text = cipher.encrypt(plain_text, key)
+    elif method == "rail fence":
+        rails = int(key) 
+        cipher = RailFenceCipher()
+        encrypted_text = cipher.encrypt(plain_text, rails)
+    elif method == "affine":
+        a, b = map(int, key.split()) 
+        cipher = AffineCipher()
+        encrypted_text = cipher.encrypt(plain_text, a, b)
+    elif method == "rot13":
+        cipher = Rot13Cipher()
+        encrypted_text = cipher.encrypt(plain_text)
+    if method == "playfair":
+        cipher = PlayfairCipher(key)
+        encrypted_text = cipher.encrypt(plain_text)
+    elif method == "ceaser cipher":
+        shift = int(key)  
+        cipher = CaesarCipher(shift)
+        encrypted_text = cipher.encrypt(plain_text)
+    
+    output_e.delete(0, END) 
+    output_e.insert(0, encrypted_text)
+
+
+
+button_image_5 = PhotoImage(
+    file=relative_to_assets("button_5.png"))
+convert_encryption = Button(
+    image=button_image_5,
+    borderwidth=0,
+    highlightthickness=0,
+         relief="flat",
+         command=convert_encryption_clicked
+)
+convert_encryption.place(
+    x=229.0,
+    y=261.0,
+    width=106.0,
+    height=38.78287887573242
+)
+
+window.resizable(False, False)
+window.mainloop()
